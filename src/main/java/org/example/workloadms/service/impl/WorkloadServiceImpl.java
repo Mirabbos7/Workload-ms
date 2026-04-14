@@ -39,10 +39,17 @@ public class WorkloadServiceImpl implements WorkloadService {
 
         int durationMinutes = request.getTrainingDuration();
 
+        // TODO:
+        //  [Optional]
+        //  I would extract durationDelta to a separate method
         boolean shouldSubtract = request.getActionType() == ActionType.DELETE
                 || !request.getIsActive();
         int duration = shouldSubtract ? -durationMinutes : durationMinutes;
 
+        // TODO:
+        //  [Optional]
+        //  This is not clearly stated in the requirements, but what should happen if along with workload
+        //  update new first and last names are provider?
         Trainer trainer = trainerRepository.findByUsername(request.getTrainerUsername())
                 .orElseGet(() -> mapper.toEntity(request));
 
@@ -80,6 +87,10 @@ public class WorkloadServiceImpl implements WorkloadService {
         monthEntry.setDurationInMinutes(Math.max(0, newTotal));
     }
 
+    // TODO:
+    //  [Optional]
+    //  1. Isn't it better to return 0 for a given month/year instead of exception?
+    //  2. Use mapper for response conversion
     @Override
     public TrainerWorkloadResponse getTrainerWorkingHours(String username, int year, int month) {
         Trainer trainer = trainerRepository.findByUsername(username)
