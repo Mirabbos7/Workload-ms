@@ -88,11 +88,9 @@ class WorkloadServiceImplTest {
 
     @Test
     void processWorkload_shouldSubtractDuration_whenActionIsDelete() {
-        // сначала добавим 90 минут
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
         workloadService.processWorkload(request);
 
-        // теперь удаляем 30 минут
         TrainerWorkloadRequest deleteRequest = TrainerWorkloadRequest.builder()
                 .trainerUsername("john.doe")
                 .trainerFirstName("John")
@@ -112,7 +110,7 @@ class WorkloadServiceImplTest {
     @Test
     void processWorkload_shouldNotGoBelowZero_whenSubtractingTooMuch() {
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
-        workloadService.processWorkload(request); // +90
+        workloadService.processWorkload(request);
 
         TrainerWorkloadRequest deleteRequest = TrainerWorkloadRequest.builder()
                 .trainerUsername("john.doe")
@@ -124,7 +122,7 @@ class WorkloadServiceImplTest {
                 .actionType(ActionType.DELETE)
                 .build();
 
-        workloadService.processWorkload(deleteRequest); // -200, должно стать 0
+        workloadService.processWorkload(deleteRequest);
 
         int total = trainer.getYears().get(0).getMonthSummary().get(0).getDurationInMinutes();
         assertThat(total).isEqualTo(0);
@@ -133,13 +131,13 @@ class WorkloadServiceImplTest {
     @Test
     void processWorkload_shouldSubtractDuration_whenTrainerIsInactive() {
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
-        workloadService.processWorkload(request); // +90
+        workloadService.processWorkload(request);
 
         TrainerWorkloadRequest inactiveRequest = TrainerWorkloadRequest.builder()
                 .trainerUsername("john.doe")
                 .trainerFirstName("John")
                 .trainerLastName("Doe")
-                .isActive(false) // неактивный — вычитаем
+                .isActive(false)
                 .trainingDate(new Date())
                 .trainingDuration(30)
                 .actionType(ActionType.ADD)
