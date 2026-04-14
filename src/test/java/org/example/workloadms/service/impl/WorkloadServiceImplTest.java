@@ -6,9 +6,7 @@ import org.example.workloadms.entity.MonthSummary;
 import org.example.workloadms.entity.Trainer;
 import org.example.workloadms.entity.YearSummary;
 import org.example.workloadms.enums.ActionType;
-import org.example.workloadms.exceptions.MonthNotFoundException;
 import org.example.workloadms.exceptions.TrainerNotFoundException;
-import org.example.workloadms.exceptions.YearNotFoundException;
 import org.example.workloadms.mapper.TrainerWorkloadMapper;
 import org.example.workloadms.repository.TrainerRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -164,6 +162,13 @@ class WorkloadServiceImplTest {
         trainer.setYears(List.of(year));
 
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
+        when(mapper.toResponse("john.doe", 2026, 4, 1.5f))
+                .thenReturn(TrainerWorkloadResponse.builder()
+                        .trainerUsername("john.doe")
+                        .year("2026")
+                        .month("4")
+                        .workingHours(1.5f)
+                        .build());
 
         TrainerWorkloadResponse response = workloadService.getTrainerWorkingHours("john.doe", 2026, 4);
 
@@ -183,26 +188,40 @@ class WorkloadServiceImplTest {
     }
 
     @Test
-    void getTrainerWorkingHours_shouldThrow_whenYearNotFound() {
+    void getTrainerWorkingHours_shouldReturnZero_whenYearNotFound() {
         trainer.setYears(new ArrayList<>());
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
+        when(mapper.toResponse("john.doe", 2026, 4, 0f))
+                .thenReturn(TrainerWorkloadResponse.builder()
+                        .trainerUsername("john.doe")
+                        .year("2026")
+                        .month("4")
+                        .workingHours(0f)
+                        .build());
 
-        assertThatThrownBy(() -> workloadService.getTrainerWorkingHours("john.doe", 2026, 4))
-                .isInstanceOf(YearNotFoundException.class)
-                .hasMessage("Year not found");
+        TrainerWorkloadResponse response = workloadService.getTrainerWorkingHours("john.doe", 2026, 4);
+
+        assertThat(response.getWorkingHours()).isEqualTo(0f);
     }
 
     @Test
-    void getTrainerWorkingHours_shouldThrow_whenMonthNotFound() {
+    void getTrainerWorkingHours_shouldReturnZero_whenMonthNotFound() {
         YearSummary year = new YearSummary();
         year.setYear(2026);
         year.setMonthSummary(new ArrayList<>());
         trainer.setYears(List.of(year));
 
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
+        when(mapper.toResponse("john.doe", 2026, 4, 0f))
+                .thenReturn(TrainerWorkloadResponse.builder()
+                        .trainerUsername("john.doe")
+                        .year("2026")
+                        .month("4")
+                        .workingHours(0f)
+                        .build());
 
-        assertThatThrownBy(() -> workloadService.getTrainerWorkingHours("john.doe", 2026, 4))
-                .isInstanceOf(MonthNotFoundException.class)
-                .hasMessage("Month not found");
+        TrainerWorkloadResponse response = workloadService.getTrainerWorkingHours("john.doe", 2026, 4);
+
+        assertThat(response.getWorkingHours()).isEqualTo(0f);
     }
 }
