@@ -13,6 +13,7 @@ import org.example.workloadms.mapper.TrainerWorkloadMapper;
 import org.example.workloadms.repository.TrainerRepository;
 import org.example.workloadms.service.WorkloadService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -28,6 +29,7 @@ public class WorkloadServiceImpl implements WorkloadService {
     private final TrainerWorkloadMapper mapper;
 
     @Override
+    @Transactional
     public void processWorkload(TrainerWorkloadRequest request) {
         LocalDate localDate = request.getTrainingDate().toInstant()
                 .atZone(ZoneId.systemDefault()).toLocalDate();
