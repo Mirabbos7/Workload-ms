@@ -49,4 +49,3 @@ management:
 activemq:
   queue:
     workload: workload.queue
-    workload-dlq: workload.DLQ
