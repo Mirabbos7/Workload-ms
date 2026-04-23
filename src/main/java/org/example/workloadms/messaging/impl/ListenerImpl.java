@@ -15,23 +15,15 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class ListenerImpl implements Listener {
 
-    private final JmsTemplate jmsTemplate;
     private final WorkloadService workloadService;
 
-    @Value("${activemq.queue.workload}")
-    private String queue;
-
-    @Value("${activemq.queue.workload-dlq}")
-    private String dlq;
-
     @Override
-    @JmsListener(destination = "${activemq.queue.workload}")
+    @JmsListener(destination = "${activemq.queue.workload}", containerFactory = "jmsListenerContainerFactory")
     public void receiveFromMessageQueue(TrainerWorkloadRequest request) {
         if (!isValid(request)) {
-            log.warn("Invalid workload message, forwarding to DLQ. trainer={}",
+            log.warn("Invalid workload message, trainer={}",
                     request != null ? request.getTrainerUsername() : null);
-            jmsTemplate.convertAndSend(dlq, request);
-            return;
+            throw new IllegalArgumentException("Invalid workload request");
         }
 
         log.info("Received workload message: trainer={}, action={}, duration={}",

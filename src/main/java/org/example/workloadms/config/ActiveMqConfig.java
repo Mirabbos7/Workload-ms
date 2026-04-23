@@ -1,10 +1,12 @@
 package org.example.workloadms.config;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.RedeliveryPolicy;
 import org.example.workloadms.dto.request.TrainerWorkloadRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jms.annotation.EnableJms;
 import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
 import org.springframework.jms.core.JmsTemplate;
@@ -30,7 +32,16 @@ public class ActiveMqConfig {
 
     @Bean
     public ActiveMQConnectionFactory activeMQConnectionFactory() {
-        return new ActiveMQConnectionFactory(user, password, broker);
+        ActiveMQConnectionFactory factory = new ActiveMQConnectionFactory(user, password, broker);
+
+        RedeliveryPolicy policy = new RedeliveryPolicy();
+        policy.setMaximumRedeliveries(3);
+        policy.setInitialRedeliveryDelay(1000L);
+        policy.setUseExponentialBackOff(true);
+        policy.setBackOffMultiplier(2.0);
+        factory.setRedeliveryPolicy(policy);
+
+        return factory;
     }
 
     @Bean
@@ -45,6 +56,7 @@ public class ActiveMqConfig {
     public DefaultJmsListenerContainerFactory jmsListenerContainerFactory(MessageConverter messageConverter) {
         DefaultJmsListenerContainerFactory factory = new DefaultJmsListenerContainerFactory();
         factory.setConnectionFactory(activeMQConnectionFactory());
+        factory.setSessionTransacted(true);
         factory.setMessageConverter(messageConverter);
         return factory;
     }
