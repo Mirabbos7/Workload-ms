@@ -5,9 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.workloadms.dto.request.TrainerWorkloadRequest;
 import org.example.workloadms.messaging.Listener;
 import org.example.workloadms.service.WorkloadService;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jms.annotation.JmsListener;
-import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
