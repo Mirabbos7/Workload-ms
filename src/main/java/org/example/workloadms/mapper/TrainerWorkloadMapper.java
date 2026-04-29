@@ -12,8 +12,8 @@ public interface TrainerWorkloadMapper {
     @Mapping(source = "trainerUsername", target = "username")
     @Mapping(source = "trainerFirstName", target = "firstName")
     @Mapping(source = "trainerLastName", target = "lastName")
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "years", ignore = true)
+    @Mapping(source = "isActive", target = "isActive")
+    @Mapping(target = "yearList", ignore = true)
     Trainer toEntity(TrainerWorkloadRequest request);
 
     default TrainerWorkloadResponse toResponse(String username, int year, int month, float workingHours) {
