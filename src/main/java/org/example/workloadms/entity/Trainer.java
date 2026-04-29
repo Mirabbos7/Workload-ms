@@ -1,35 +1,47 @@
 package org.example.workloadms.entity;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.util.ArrayList;
 import java.util.List;
 
-@Entity
-@Table(name = "trainer")
+@Document(collection = "trainer_workload")
+@CompoundIndex(name = "name_idx", def = "{'firstName': 1, 'lastName': 1}")
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@Setter
-@Getter
-public class Trainer extends BaseEntity {
+@Builder
+public class Trainer {
 
-    @Column(name = "username")
     private String username;
-
-    @Column(name = "first_name")
     private String firstName;
-
-    @Column(name = "last_name")
     private String lastName;
+    private Boolean isActive;
+    private List<Year> yearList;
 
-    @Column(name = "is_active")
-    private boolean isActive;
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class Year {
+        private String year;
+        private List<Month> monthList;
+    }
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<YearSummary> years = new ArrayList<>();
-
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class Month {
+        private String month;
+        private int trainingSummaryDuration;
+    }
 }
