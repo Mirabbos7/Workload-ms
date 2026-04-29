@@ -20,5 +20,4 @@ public class TrainerWorkloadRequest {
     private Date trainingDate;
     private Integer trainingDuration;
     private ActionType actionType;
-
 }

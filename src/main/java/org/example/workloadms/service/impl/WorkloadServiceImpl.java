@@ -4,9 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.workloadms.dto.request.TrainerWorkloadRequest;
 import org.example.workloadms.dto.response.TrainerWorkloadResponse;
-import org.example.workloadms.entity.MonthSummary;
 import org.example.workloadms.entity.Trainer;
-import org.example.workloadms.entity.YearSummary;
 import org.example.workloadms.enums.ActionType;
 import org.example.workloadms.exceptions.TrainerNotFoundException;
 import org.example.workloadms.mapper.TrainerWorkloadMapper;
@@ -31,6 +29,8 @@ public class WorkloadServiceImpl implements WorkloadService {
     @Override
     @Transactional
     public void processWorkload(TrainerWorkloadRequest request) {
+        log.info("Received processWorkload request for trainer: {}", request.getTrainerUsername());
+
         LocalDate localDate = request.getTrainingDate().toInstant()
                 .atZone(ZoneId.systemDefault()).toLocalDate();
 
@@ -39,11 +39,42 @@ public class WorkloadServiceImpl implements WorkloadService {
         int duration = calculateDurationDelta(request);
 
         Trainer trainer = trainerRepository.findByUsername(request.getTrainerUsername())
-                .map(existing -> updateTrainerNames(existing, request))
-                .orElseGet(() -> mapper.toEntity(request));
+                .map(existing -> {
+                    log.debug("Trainer found: {}, updating names", existing.getUsername());
+                    return updateTrainerNames(existing, request);
+                })
+                .orElseGet(() -> {
+                    log.info("Trainer not found, creating new document for: {}", request.getTrainerUsername());
+                    return mapper.toEntity(request);
+                });
 
         updateTrainerRecord(trainer, year, month, duration);
         trainerRepository.save(trainer);
+        log.info("Successfully processed workload for trainer: {}", request.getTrainerUsername());
+    }
+
+    @Override
+    public TrainerWorkloadResponse getTrainerWorkingHours(String username, int year, int month) {
+        log.info("Fetching working hours for trainer: {}, year: {}, month: {}", username, year, month);
+
+        Trainer trainer = trainerRepository.findByUsername(username)
+                .orElseThrow(() -> {
+                    log.warn("Trainer not found: {}", username);
+                    return new TrainerNotFoundException("Trainer not found");
+                });
+
+        int durationInMinutes = trainer.getYearList().stream()
+                .filter(y -> y.getYear().equals(String.valueOf(year)))
+                .findFirst()
+                .flatMap(y -> y.getMonthList().stream()
+                        .filter(m -> m.getMonth().equals(String.valueOf(month)))
+                        .findFirst())
+                .map(Trainer.Month::getTrainingSummaryDuration)
+                .orElse(0);
+
+        log.info("Returning working hours for trainer: {}, duration: {} min", username, durationInMinutes);
+
+        return new TrainerWorkloadResponse(username, String.valueOf(year), String.valueOf(month), durationInMinutes / 60F);
     }
 
     private int calculateDurationDelta(TrainerWorkloadRequest request) {
@@ -59,51 +90,42 @@ public class WorkloadServiceImpl implements WorkloadService {
         return trainer;
     }
 
-    private void updateTrainerRecord(Trainer trainer, int year, int month, int durationMinutes) {
-        List<YearSummary> years = trainer.getYears();
+    private void updateTrainerRecord(Trainer trainer, int year, int month, int durationDelta) {
+        if (trainer.getYearList() == null) {
+            trainer.setYearList(new ArrayList<>());
+        }
 
-        YearSummary yearEntry = years.stream()
-                .filter(y -> y.getYear() == year)
+        List<Trainer.Year> years = trainer.getYearList();
+
+        Trainer.Year yearEntry = years.stream()
+                .filter(y -> y.getYear().equals(String.valueOf(year)))
                 .findFirst()
                 .orElseGet(() -> {
-                    YearSummary newYear = new YearSummary();
-                    newYear.setYear(year);
-                    newYear.setMonthSummary(new ArrayList<>());
+                    Trainer.Year newYear = Trainer.Year.builder()
+                            .year(String.valueOf(year))
+                            .monthList(new ArrayList<>())
+                            .build();
                     years.add(newYear);
                     return newYear;
                 });
 
-        List<MonthSummary> months = yearEntry.getMonthSummary();
-        MonthSummary monthEntry = months.stream()
-                .filter(m -> m.getMonth() == month)
+        List<Trainer.Month> months = yearEntry.getMonthList();
+
+        Trainer.Month monthEntry = months.stream()
+                .filter(m -> m.getMonth().equals(String.valueOf(month)))
                 .findFirst()
                 .orElseGet(() -> {
-                    MonthSummary newMonth = new MonthSummary();
-                    newMonth.setMonth(month);
-                    newMonth.setDurationInMinutes(0);
+                    Trainer.Month newMonth = Trainer.Month.builder()
+                            .month(String.valueOf(month))
+                            .trainingSummaryDuration(0)
+                            .build();
                     months.add(newMonth);
                     return newMonth;
                 });
+        int oldDuration = monthEntry.getTrainingSummaryDuration();
+        int newDuration = Math.max(0, oldDuration + durationDelta);
+        log.debug("Updating duration: year={}, month={}, {} -> {}", year, month, oldDuration, newDuration);
 
-        int newTotal = monthEntry.getDurationInMinutes() + durationMinutes;
-        monthEntry.setDurationInMinutes(Math.max(0, newTotal));
-    }
-
-    @Override
-    public TrainerWorkloadResponse getTrainerWorkingHours(String username, int year, int month) {
-        Trainer trainer = trainerRepository.findByUsername(username)
-                .orElseThrow(() -> new TrainerNotFoundException("Trainer not found"));
-
-        int durationInMinutes = trainer.getYears().stream()
-                .filter(y -> y.getYear() == year)
-                .findFirst()
-                .map(yearSummary -> yearSummary.getMonthSummary().stream()
-                        .filter(m -> m.getMonth() == month)
-                        .findFirst()
-                        .map(MonthSummary::getDurationInMinutes)
-                        .orElse(0))
-                .orElse(0);
-
-        return mapper.toResponse(username, year, month, durationInMinutes / 60F);
+        monthEntry.setTrainingSummaryDuration(newDuration);
     }
 }
