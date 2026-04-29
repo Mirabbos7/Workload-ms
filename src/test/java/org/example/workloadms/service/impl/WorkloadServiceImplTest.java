@@ -2,14 +2,13 @@ package org.example.workloadms.service.impl;
 
 import org.example.workloadms.dto.request.TrainerWorkloadRequest;
 import org.example.workloadms.dto.response.TrainerWorkloadResponse;
-import org.example.workloadms.entity.MonthSummary;
 import org.example.workloadms.entity.Trainer;
-import org.example.workloadms.entity.YearSummary;
 import org.example.workloadms.enums.ActionType;
 import org.example.workloadms.exceptions.TrainerNotFoundException;
 import org.example.workloadms.mapper.TrainerWorkloadMapper;
 import org.example.workloadms.repository.TrainerRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -56,11 +55,12 @@ class WorkloadServiceImplTest {
         trainer.setUsername("john.doe");
         trainer.setFirstName("John");
         trainer.setLastName("Doe");
-        trainer.setActive(true);
-        trainer.setYears(new ArrayList<>());
+        trainer.setIsActive(true);
+        trainer.setYearList(new ArrayList<>());
     }
 
     @Test
+    @DisplayName("Should create new trainer when not found in DB")
     void processWorkload_shouldCreateNewTrainer_whenNotExists() {
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.empty());
         when(mapper.toEntity(request)).thenReturn(trainer);
@@ -68,25 +68,42 @@ class WorkloadServiceImplTest {
         workloadService.processWorkload(request);
 
         verify(trainerRepository).save(trainer);
-        assertThat(trainer.getYears()).hasSize(1);
-        assertThat(trainer.getYears().get(0).getMonthSummary()).hasSize(1);
-        assertThat(trainer.getYears().get(0).getMonthSummary().get(0).getDurationInMinutes())
+        assertThat(trainer.getYearList()).hasSize(1);
+        assertThat(trainer.getYearList().get(0).getMonthList()).hasSize(1);
+        assertThat(trainer.getYearList().get(0).getMonthList().get(0).getTrainingSummaryDuration())
                 .isEqualTo(90);
     }
 
     @Test
-    void processWorkload_shouldUpdateExistingTrainer_whenExists() {
+    @DisplayName("Should update trainer names when trainer already exists")
+    void processWorkload_shouldUpdateTrainerNames_whenExists() {
+        when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
+
+        request.setTrainerFirstName("UpdatedFirst");
+        request.setTrainerLastName("UpdatedLast");
+
+        workloadService.processWorkload(request);
+
+        assertThat(trainer.getFirstName()).isEqualTo("UpdatedFirst");
+        assertThat(trainer.getLastName()).isEqualTo("UpdatedLast");
+        verify(trainerRepository).save(trainer);
+    }
+
+    @Test
+    @DisplayName("Should accumulate duration on second call")
+    void processWorkload_shouldAccumulateDuration_onSecondCall() {
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
 
         workloadService.processWorkload(request);
         workloadService.processWorkload(request);
 
         verify(trainerRepository, times(2)).save(trainer);
-        int total = trainer.getYears().get(0).getMonthSummary().get(0).getDurationInMinutes();
+        int total = trainer.getYearList().get(0).getMonthList().get(0).getTrainingSummaryDuration();
         assertThat(total).isEqualTo(180);
     }
 
     @Test
+    @DisplayName("Should subtract duration when action type is DELETE")
     void processWorkload_shouldSubtractDuration_whenActionIsDelete() {
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
         workloadService.processWorkload(request);
@@ -103,11 +120,12 @@ class WorkloadServiceImplTest {
 
         workloadService.processWorkload(deleteRequest);
 
-        int total = trainer.getYears().get(0).getMonthSummary().get(0).getDurationInMinutes();
+        int total = trainer.getYearList().get(0).getMonthList().get(0).getTrainingSummaryDuration();
         assertThat(total).isEqualTo(60);
     }
 
     @Test
+    @DisplayName("Should not go below zero when subtracting too much")
     void processWorkload_shouldNotGoBelowZero_whenSubtractingTooMuch() {
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
         workloadService.processWorkload(request);
@@ -124,11 +142,12 @@ class WorkloadServiceImplTest {
 
         workloadService.processWorkload(deleteRequest);
 
-        int total = trainer.getYears().get(0).getMonthSummary().get(0).getDurationInMinutes();
-        assertThat(total).isEqualTo(0);
+        int total = trainer.getYearList().get(0).getMonthList().get(0).getTrainingSummaryDuration();
+        assertThat(total).isZero();
     }
 
     @Test
+    @DisplayName("Should subtract duration when trainer isActive is false")
     void processWorkload_shouldSubtractDuration_whenTrainerIsInactive() {
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
         workloadService.processWorkload(request);
@@ -145,28 +164,35 @@ class WorkloadServiceImplTest {
 
         workloadService.processWorkload(inactiveRequest);
 
-        int total = trainer.getYears().get(0).getMonthSummary().get(0).getDurationInMinutes();
+        int total = trainer.getYearList().get(0).getMonthList().get(0).getTrainingSummaryDuration();
         assertThat(total).isEqualTo(60);
     }
 
     @Test
+    @DisplayName("Should create new year entry when year does not exist")
+    void processWorkload_shouldCreateNewYear_whenYearNotExists() {
+        when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
+
+        workloadService.processWorkload(request);
+
+        assertThat(trainer.getYearList()).hasSize(1);
+        assertThat(trainer.getYearList().get(0).getYear()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Should return correct working hours")
     void getTrainerWorkingHours_shouldReturnCorrectHours() {
-        YearSummary year = new YearSummary();
-        year.setYear(2026);
-        MonthSummary month = new MonthSummary();
-        month.setMonth(4);
-        month.setDurationInMinutes(90);
-        year.setMonthSummary(List.of(month));
-        trainer.setYears(List.of(year));
+        Trainer.Month month = Trainer.Month.builder()
+                .month("4")
+                .trainingSummaryDuration(90)
+                .build();
+        Trainer.Year year = Trainer.Year.builder()
+                .year("2026")
+                .monthList(new ArrayList<>(List.of(month)))
+                .build();
+        trainer.setYearList(new ArrayList<>(List.of(year)));
 
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
-        when(mapper.toResponse("john.doe", 2026, 4, 1.5f))
-                .thenReturn(TrainerWorkloadResponse.builder()
-                        .trainerUsername("john.doe")
-                        .year("2026")
-                        .month("4")
-                        .workingHours(1.5f)
-                        .build());
 
         TrainerWorkloadResponse response = workloadService.getTrainerWorkingHours("john.doe", 2026, 4);
 
@@ -177,6 +203,7 @@ class WorkloadServiceImplTest {
     }
 
     @Test
+    @DisplayName("Should throw TrainerNotFoundException when trainer not found")
     void getTrainerWorkingHours_shouldThrow_whenTrainerNotFound() {
         when(trainerRepository.findByUsername("unknown")).thenReturn(Optional.empty());
 
@@ -186,40 +213,29 @@ class WorkloadServiceImplTest {
     }
 
     @Test
+    @DisplayName("Should return zero hours when year not found")
     void getTrainerWorkingHours_shouldReturnZero_whenYearNotFound() {
-        trainer.setYears(new ArrayList<>());
+        trainer.setYearList(new ArrayList<>());
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
-        when(mapper.toResponse("john.doe", 2026, 4, 0f))
-                .thenReturn(TrainerWorkloadResponse.builder()
-                        .trainerUsername("john.doe")
-                        .year("2026")
-                        .month("4")
-                        .workingHours(0f)
-                        .build());
 
         TrainerWorkloadResponse response = workloadService.getTrainerWorkingHours("john.doe", 2026, 4);
 
-        assertThat(response.getWorkingHours()).isEqualTo(0f);
+        assertThat(response.getWorkingHours()).isZero();
     }
 
     @Test
+    @DisplayName("Should return zero hours when month not found")
     void getTrainerWorkingHours_shouldReturnZero_whenMonthNotFound() {
-        YearSummary year = new YearSummary();
-        year.setYear(2026);
-        year.setMonthSummary(new ArrayList<>());
-        trainer.setYears(List.of(year));
+        Trainer.Year year = Trainer.Year.builder()
+                .year("2026")
+                .monthList(new ArrayList<>())
+                .build();
+        trainer.setYearList(new ArrayList<>(List.of(year)));
 
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
-        when(mapper.toResponse("john.doe", 2026, 4, 0f))
-                .thenReturn(TrainerWorkloadResponse.builder()
-                        .trainerUsername("john.doe")
-                        .year("2026")
-                        .month("4")
-                        .workingHours(0f)
-                        .build());
 
         TrainerWorkloadResponse response = workloadService.getTrainerWorkingHours("john.doe", 2026, 4);
 
-        assertThat(response.getWorkingHours()).isEqualTo(0f);
+        assertThat(response.getWorkingHours()).isZero();
     }
 }
