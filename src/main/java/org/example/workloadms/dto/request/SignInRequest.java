@@ -1,6 +1,6 @@
 package org.example.workloadms.dto.request;
 
-import org.antlr.v4.runtime.misc.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 public record SignInRequest(
         @NotNull
