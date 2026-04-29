@@ -2,27 +2,13 @@ spring:
   application:
     name: Workload-ms
 
-  datasource:
-    url: jdbc:h2:mem:workloaddb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    database-platform: org.hibernate.dialect.H2Dialect
-
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-
   activemq:
     broker-url: tcp://localhost:61616
     user: admin
     password: admin
+
+  mongodb:
+    uri: mongodb://localhost:27017/workload_db
 
 server:
   port: 9090
