@@ -1,6 +1,7 @@
 package org.example.workloadms.controller;
 
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.workloadms.dto.request.TrainerWorkloadRequest;
 import org.example.workloadms.dto.response.TrainerWorkloadResponse;
@@ -16,7 +17,7 @@ public class WorkloadController {
     private final WorkloadService workloadService;
 
     @PostMapping
-    public ResponseEntity<Void> processWorkload(@RequestBody TrainerWorkloadRequest request) {
+    public ResponseEntity<Void> processWorkload(@Valid @RequestBody TrainerWorkloadRequest request) {
         workloadService.processWorkload(request);
         return ResponseEntity.ok().build();
     }
