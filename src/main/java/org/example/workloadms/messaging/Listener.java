@@ -4,5 +4,5 @@ import org.example.workloadms.dto.request.TrainerWorkloadRequest;
 
 public interface Listener {
 
-    void receiveFromMessageQueue(TrainerWorkloadRequest request);
+    void receiveFromMessageQueue(TrainerWorkloadRequest request, String txId);
 }
