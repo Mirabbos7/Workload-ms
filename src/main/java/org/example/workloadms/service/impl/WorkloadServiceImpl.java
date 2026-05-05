@@ -6,7 +6,9 @@ import org.example.workloadms.dto.request.TrainerWorkloadRequest;
 import org.example.workloadms.dto.response.TrainerWorkloadResponse;
 import org.example.workloadms.entity.Trainer;
 import org.example.workloadms.enums.ActionType;
+import org.example.workloadms.exceptions.MonthNotFoundException;
 import org.example.workloadms.exceptions.TrainerNotFoundException;
+import org.example.workloadms.exceptions.YearNotFoundException;
 import org.example.workloadms.mapper.TrainerWorkloadMapper;
 import org.example.workloadms.repository.TrainerRepository;
 import org.example.workloadms.service.WorkloadService;
@@ -56,6 +58,10 @@ public class WorkloadServiceImpl implements WorkloadService {
     @Override
     public TrainerWorkloadResponse getTrainerWorkingHours(String username, int year, int month) {
         log.info("Fetching working hours for trainer: {}, year: {}, month: {}", username, year, month);
+        int currentYear = LocalDate.now().getYear();
+        if (year > currentYear) {
+            throw new IllegalArgumentException("Year cannot be greater than current year: " + currentYear);
+        }
 
         Trainer trainer = trainerRepository.findByUsername(username)
                 .orElseThrow(() -> {
@@ -66,12 +72,18 @@ public class WorkloadServiceImpl implements WorkloadService {
         int durationInMinutes = trainer.getYearList().stream()
                 .filter(y -> y.getYear().equals(String.valueOf(year)))
                 .findFirst()
-                .flatMap(y -> y.getMonthList().stream()
-                        .filter(m -> m.getMonth().equals(String.valueOf(month)))
-                        .findFirst())
-                .map(Trainer.Month::getTrainingSummaryDuration)
-                .orElse(0);
-
+                .orElseThrow(() -> {
+                    log.warn("Year {} not found for trainer: {}", year, username);
+                    return new YearNotFoundException("No data for year: " + year);
+                })
+                .getMonthList().stream()
+                .filter(m -> m.getMonth().equals(String.valueOf(month)))
+                .findFirst()
+                .orElseThrow(() -> {
+                    log.warn("Month {} not found for trainer: {}, year: {}", month, username, year);
+                    return new MonthNotFoundException("No data for month: " + month);
+                })
+                .getTrainingSummaryDuration();
         log.info("Returning working hours for trainer: {}, duration: {} min", username, durationInMinutes);
 
         return new TrainerWorkloadResponse(username, String.valueOf(year), String.valueOf(month), durationInMinutes / 60F);
