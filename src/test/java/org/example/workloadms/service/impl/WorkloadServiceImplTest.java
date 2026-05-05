@@ -4,7 +4,9 @@ import org.example.workloadms.dto.request.TrainerWorkloadRequest;
 import org.example.workloadms.dto.response.TrainerWorkloadResponse;
 import org.example.workloadms.entity.Trainer;
 import org.example.workloadms.enums.ActionType;
+import org.example.workloadms.exceptions.MonthNotFoundException;
 import org.example.workloadms.exceptions.TrainerNotFoundException;
+import org.example.workloadms.exceptions.YearNotFoundException;
 import org.example.workloadms.mapper.TrainerWorkloadMapper;
 import org.example.workloadms.repository.TrainerRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -213,29 +215,36 @@ class WorkloadServiceImplTest {
     }
 
     @Test
-    @DisplayName("Should return zero hours when year not found")
-    void getTrainerWorkingHours_shouldReturnZero_whenYearNotFound() {
+    @DisplayName("Should throw YearNotFoundException when year not found")
+    void getTrainerWorkingHours_shouldThrow_whenYearNotFound() {
         trainer.setYearList(new ArrayList<>());
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
 
-        TrainerWorkloadResponse response = workloadService.getTrainerWorkingHours("john.doe", 2026, 4);
-
-        assertThat(response.getWorkingHours()).isZero();
+        assertThatThrownBy(() -> workloadService.getTrainerWorkingHours("john.doe", 2026, 4))
+                .isInstanceOf(YearNotFoundException.class)
+                .hasMessage("No data for year: 2026");
     }
 
     @Test
-    @DisplayName("Should return zero hours when month not found")
-    void getTrainerWorkingHours_shouldReturnZero_whenMonthNotFound() {
+    @DisplayName("Should throw MonthNotFoundException when month not found")
+    void getTrainerWorkingHours_shouldThrow_whenMonthNotFound() {
         Trainer.Year year = Trainer.Year.builder()
                 .year("2026")
                 .monthList(new ArrayList<>())
                 .build();
         trainer.setYearList(new ArrayList<>(List.of(year)));
-
         when(trainerRepository.findByUsername("john.doe")).thenReturn(Optional.of(trainer));
 
-        TrainerWorkloadResponse response = workloadService.getTrainerWorkingHours("john.doe", 2026, 4);
+        assertThatThrownBy(() -> workloadService.getTrainerWorkingHours("john.doe", 2026, 4))
+                .isInstanceOf(MonthNotFoundException.class)
+                .hasMessage("No data for month: 4");
+    }
 
-        assertThat(response.getWorkingHours()).isZero();
+    @Test
+    @DisplayName("Should throw IllegalArgumentException when year is in the future")
+    void getTrainerWorkingHours_shouldThrow_whenYearIsInFuture() {
+        assertThatThrownBy(() -> workloadService.getTrainerWorkingHours("john.doe", 2099, 4))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Year cannot be greater than current year");
     }
 }

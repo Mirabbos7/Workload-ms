@@ -6,7 +6,6 @@ import org.example.workloadms.dto.request.TrainerWorkloadRequest;
 import org.example.workloadms.dto.response.TrainerWorkloadResponse;
 import org.example.workloadms.enums.ActionType;
 import org.example.workloadms.exceptions.GlobalExceptionHandler;
-import org.example.workloadms.exceptions.MonthNotFoundException;
 import org.example.workloadms.exceptions.TrainerNotFoundException;
 import org.example.workloadms.service.WorkloadService;
 import org.junit.jupiter.api.Test;
@@ -19,9 +18,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Date;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -101,13 +102,11 @@ class WorkloadControllerTest {
     }
 
     @Test
-    void getTrainerWorkingHours_shouldReturn404_whenMonthNotFound() throws Exception {
-        when(workloadService.getTrainerWorkingHours(eq("john.doe"), eq(2026), eq(99)))
-                .thenThrow(new MonthNotFoundException("Month not found"));
-
+    void getTrainerWorkingHours_shouldReturn400_whenMonthIsInvalid() throws Exception {
         mockMvc.perform(get("/api/workload/john.doe")
                         .param("year", "2026")
                         .param("month", "99"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("Month must not be greater than 12")));
     }
 }
