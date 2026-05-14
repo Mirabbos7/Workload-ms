@@ -28,7 +28,7 @@ public class WorkloadController {
     @GetMapping("/{username}")
     public ResponseEntity<TrainerWorkloadResponse> getTrainerWorkingHours(
             @PathVariable String username,
-            @RequestParam @Min(2000) @Max(2100) int year,
+            @RequestParam @Min(2000) @Max(2026) int year,
             @RequestParam @Min(value = 1, message = "Month must be at least 1")
             @Max(value = 12, message = "Month must not be greater than 12") int month) {
         TrainerWorkloadResponse response = workloadService.getTrainerWorkingHours(username, year, month);

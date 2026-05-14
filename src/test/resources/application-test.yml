@@ -1,0 +1,28 @@
+server:
+  port: 0
+
+spring:
+  data:
+    mongodb:
+      auto-index-creation: true
+
+  activemq:
+    broker-url: tcp://localhost:61616
+    user: admin
+    password: admin
+
+jwt:
+  secret: K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=
+
+eureka:
+  client:
+    enabled: false
+
+activemq:
+  queue:
+    workload: workload.queue
+
+logging:
+  level:
+    org.example: DEBUG
+    org.springframework.security: DEBUG
